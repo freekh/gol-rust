@@ -1,4 +1,13 @@
+#![feature(plugin,custom_derive)]
+#![plugin(rocket_codegen)]
+
+extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
+#[macro_use] extern crate serde_derive;
+
 use std::{thread, time};
+use rocket::request::*;
+use rocket_contrib::*;
 
 fn print(world: &Vec<Vec<bool>>) {
   for row in world.iter() {
@@ -44,20 +53,44 @@ fn next(world: Vec<Vec<bool>>) -> Vec<Vec<bool>> {
   }).collect()
 }
 
-fn main() {
-  let mut world = vec![
-    vec![false, false, false, false, false],
-    vec![false, true , true , true , false],
-    vec![false, false, false, false, false],
-    vec![false, false, false, false, false],
-    vec![false, false, false, false, false],
-  ];
+#[derive(Serialize, Deserialize)]
+struct World {
+  data: Vec<Vec<bool>>,
+  generation: u64,
+}
 
-  loop {
-    world = next(world);
-    print(&world);
-    println!();
-    let sleep_time = time::Duration::from_millis(1000);
-    thread::sleep(sleep_time);
+#[derive(FromForm)]
+struct Qp {
+  generations: u64
+}
+
+#[post("/gol?<qp>", data = "<world>")]
+fn gol(world: Json<World>, qp: Qp) -> Option<Json<World>> {
+  let mut data = world.data.clone();
+  for _ in world.generation..qp.generations {
+    data = next(data);
   }
+  Some(Json(World {
+    generation: world.generation + qp.generations,
+    data: data,
+  }))
+}
+
+fn main() {
+   rocket::ignite().mount("/", routes![gol]).launch();
+  // let mut world = vec![
+  //   vec![false, false, false, false, false],
+  //   vec![false, true , true , true , false],
+  //   vec![false, false, false, false, false],
+  //   vec![false, false, false, false, false],
+  //   vec![false, false, false, false, false],
+  // ];
+
+  // loop {
+  //   world = next(world);
+  //   print(&world);
+  //   println!();
+  //   let sleep_time = time::Duration::from_millis(1000);
+  //   thread::sleep(sleep_time);
+  // }
 }
