@@ -1,3 +1,4 @@
+// Completed in interview (2 hours pairprogramming)
 #![feature(plugin,custom_derive)]
 #![plugin(rocket_codegen)]
 
@@ -22,32 +23,46 @@ fn print(world: &Vec<Vec<bool>>) {
   }
 }
 
+const NEIGHBOURS: [(i64, i64); 8] = [
+  ( 1, 1),  ( 1, 0),  ( 1, -1),
+  ( 0, 1)/*,( 0, 0)*/,( 0, -1), // skip self
+  (-1, 1),  (-1, 0),  (-1, -1)
+];
+
+fn count_neighbours(world: &Vec<Vec<bool>>, x: i64, y: i64) -> usize {
+  NEIGHBOURS.iter().fold(0, |sum, &(nx, ny)| {
+    let x_bound = nx + x;
+    let y_bound = ny + y;
+    if x_bound >= 0 && y_bound >= 0 {
+      let &alive = world
+        .get(x_bound as usize)
+        .and_then(|row| { row.get(y_bound as usize) })
+        .unwrap_or(&false);
+      if alive {
+        sum + 1
+      } else {
+        sum
+      }
+    } else {
+      sum
+    }
+  })
+}
+
 fn next(world: Vec<Vec<bool>>) -> Vec<Vec<bool>> {
   world.iter().enumerate().map(|(x, row)| {
-    row.iter().enumerate().map(|(y, cell)| {
-      let mut live_neighbours = 0;
-      for neighbour_x in 0..3 {
-        for neighbour_y in 0..3 {
-          let x_bound: i32 = (neighbour_x as i32) + (x as i32) - 1;
-          let y_bound: i32 = (neighbour_y as i32) + (y as i32) - 1;
-          if !(neighbour_x == 1 && neighbour_y == 1) && // 1 is really 0 ;)
-            x_bound >= 0 && x_bound < world.len() as i32 &&
-            y_bound >= 0 && y_bound < row.len() as i32 &&
-            world[x_bound as usize][y_bound as usize] {
-              live_neighbours += 1;
-          }
-        }
-      }
-      if *cell && live_neighbours < 2 {
+    row.iter().enumerate().map(|(y, &alive)| {
+      let live_neighbours = count_neighbours(&world, x as i64, y as i64);
+      if alive && live_neighbours < 2 {
         false
-      } else if *cell && (live_neighbours == 2 || live_neighbours == 3) {
+      } else if alive && (live_neighbours == 2 || live_neighbours == 3) {
         true
-      } else if *cell && live_neighbours > 3 {
+      } else if alive && live_neighbours > 3 {
         false
-      } else if !*cell && live_neighbours == 3 {
+      } else if !alive && live_neighbours == 3 {
         true
       } else {
-        *cell
+        alive
       }
     }).collect()
   }).collect()
@@ -77,20 +92,25 @@ fn gol(world: Json<World>, qp: Qp) -> Option<Json<World>> {
 }
 
 fn main() {
-   rocket::ignite().mount("/", routes![gol]).launch();
+  // Uncomment API or CLI
+
+  // API inteface
+  // rocket::ignite().mount("/", routes![gol]).launch();
+
+  // CLI interface
   // let mut world = vec![
-  //   vec![false, false, false, false, false],
-  //   vec![false, true , true , true , false],
-  //   vec![false, false, false, false, false],
+  //   vec![false, false, true , false, false],
+  //   vec![false, false, true , false , false],
+  //   vec![false, false, true , false, false],
   //   vec![false, false, false, false, false],
   //   vec![false, false, false, false, false],
   // ];
 
+  // let sleep_time = time::Duration::from_millis(1000);
   // loop {
-  //   world = next(world);
   //   print(&world);
   //   println!();
-  //   let sleep_time = time::Duration::from_millis(1000);
+  //   world = next(world);
   //   thread::sleep(sleep_time);
   // }
 }
